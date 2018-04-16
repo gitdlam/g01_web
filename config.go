@@ -124,7 +124,7 @@ func createFunc(port string) func(http.ResponseWriter, *http.Request) {
 	fn := func(w http.ResponseWriter, req *http.Request) {
 		if len(req.RequestURI) >= 3 && req.RequestURI[0:3] == "/g/" {
 			//user := req.Context().Value("sso").(string)
-			user := req.Header.Get("sso")
+			user := req.Header.Get("remote_user")
 			log.Println("redirected check:", user)
 		}
 
