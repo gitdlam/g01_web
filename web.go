@@ -8,6 +8,9 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+
+	//	"net/url"
+
 	//	"net/url"
 	"os"
 	"strings"
@@ -18,10 +21,11 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/gitdlam/common"
 	"github.com/go-chi/chi"
+
 	//	"github.com/go-chi/chi/middleware"
 	"github.com/gitdlam/authenticator"
-	"github.com/justinas/alice"
-	//"github.com/vulcand/oxy/forward"
+	//	"github.com/justinas/alice"
+	//	"github.com/vulcand/oxy/forward"
 )
 
 func pingResponse(w http.ResponseWriter, req *http.Request) {
@@ -149,34 +153,35 @@ func updateStatusFinished(session_id string) {
 
 func HTTPServe() {
 	r := chi.NewRouter()
+	r.Use(authenticator.Authenticator2)
+	r.Use(reverseProxyMW)
 
 	r.Get("/ping", pingResponse)
 	r.Get("/folder", folderResponse)
 	FileServer(r, "/f/static/", http.Dir(global.folder+"/static"))
-
-	for _, v := range global.config.Pathmap {
-		r.HandleFunc(v.Path+"*", global.funcMap[v.Path])
-	}
+	/*
+		for _, v := range global.config.Pathmap {
+					r.HandleFunc(v.Path+"*", global.funcMap[v.Path])
+		}
+	*/
 	r.HandleFunc("/g/sso", sso)
 	r.HandleFunc("/g/sso/name", sso)
+	r.HandleFunc("/f/refresh", refreshRoutes())
 
 	r.Get("/terminate/"+global.config.SessionPort, terminate)
 	r.Post("/do", do)
 
-	mw := alice.New(authenticator.Authenticator2).Then(r)
+	//mw := alice.New(authenticator.Authenticator2).Then(r)
 
-	server := &http.Server{Addr: ":" + global.config.HttpPort, Handler: mw}
+	server := &http.Server{Addr: ":" + global.config.HttpPort, Handler: r}
 
 	//	server.SetKeepAlivesEnabled(true)
+	go http.ListenAndServeTLS(":443", "server.crt", "server.key", r)
 
 	server.ListenAndServe()
+
 	//http.ListenAndServe(":"+global.config.HttpPort, mw)
 
-}
-
-func getHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Success"))
-	return
 }
 
 func dbConnection() *sql.DB {
